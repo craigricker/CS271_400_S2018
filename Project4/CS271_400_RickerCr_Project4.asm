@@ -69,11 +69,13 @@ introduction PROC
 	mov		edx, OFFSET expl2
 	call	WriteString
 	call	CrLf
+
+	ret
 introduction ENDP
 
 
 ;-------------------------------------------------------------------------------
-getInt PROC
+getUserData PROC
 ; Description:	Prints a prompt that requests users to pick an int in between
 ;				an upper and a lower bound. Reprompt until satisfied
 ;
@@ -81,22 +83,56 @@ getInt PROC
 ;				lowerlimit	smallest acceptable int
 ;				upperlimit	largest acceptable int
 ; Output:		number selected by user
-; Registers:	No register modification takes place - saved and restore in PROC
+; Registers:	eax and edx are modified
 ; StackFrame	ret addres			Address to return to
-;				[esp + 8]			prompt to print
-;				[esp + 12]			lower limit
-;				[esp + 16]			upper limit
-;				[esp + 20]			return value
+;				[ebp + 8]			prompt to print
+;				[ebp + 12]			lower limit
+;				[ebp + 16]			upper limit
+;				[ebp + 20]			return value
 ;--------
 ;-------------------------------------------------------------------------------
-	;push	ebp
-	;mov		ebp, esp
+	push	ebp
+	mov		ebp, esp
 	EntryLoop:
-	mov		edx, [esp+4]						; Print prompt from stack
+	mov		edx, [ebp + 8]						; Print prompt from stack
 	call	WriteString
+	call	ReadInt								; Read in number
+	mov		[ebp +20], eax						; Store number
 
-	ret		16									; Return 16, popped 4 values
-getInt ENDP
+	cmp		[ebp +20], [ebp + 16]
+	jg		EntryLoop							; Too big
+	cmp		eax, [ebp + 12]
+	jl		EntryLoop							; Too small
+
+
+	pop		ebp
+	ret		16									; Return 16, pushed 4 values
+getUserData ENDP
+
+;-------------------------------------------------------------------------------
+validateInput PROC
+; Description:	Prints a prompt that requests users to pick an int in between
+;				an upper and a lower bound. Reprompt until satisfied
+;
+; Input:		prompt		text to explain input requrements
+;				lowerlimit	smallest acceptable int
+;				upperlimit	largest acceptable int
+; Output:		number selected by user
+; Registers:	eax and edx are modified
+; StackFrame	ret addres			Address to return to
+;				[ebp + 8]			prompt to print
+;				[ebp + 12]			lower limit
+;				[ebp + 16]			upper limit
+;				[ebp + 20]			return value
+;--------
+;-------------------------------------------------------------------------------
+	push	ebp
+	mov		ebp, esp
+
+
+validateInput ENDP
+
+
 
 main PROC
 	call	introduction
@@ -104,7 +140,7 @@ main PROC
 	push	400									; Upper limit
 	push	1									; Lower limit
 	push	OFFSET enterNumb					; Explanation of input req
-	call	getInt
+	call	getUserData
 	exit	; exit to operating system
 main ENDP
 
