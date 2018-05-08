@@ -127,7 +127,7 @@ CheckCount:
 	call	WriteString
 	call	CrLf
 	jmp		Ending								; Jump to end, don't calculate
-;----End No Input	----
+;----End No Input----
 ;-------------------------------------------------------------------------------
 
 
