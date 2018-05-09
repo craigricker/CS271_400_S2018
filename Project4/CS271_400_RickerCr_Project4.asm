@@ -191,15 +191,19 @@ FindComposite:
 	pop		eax
 	cmp		edx, 1								; See if prime
 	je		PrintComposite
-	cmp		ecx, 1
-	je		RetShowComposites
 	inc		eax
-	loop	FindComposite
+	jmp		FindComposite
+
+PrintNewLine:
+	call	CrLf
 
 PrintComposite:
 	call	WriteDec
 	call	CrLf
+	inc		eax
 	loop	FindComposite
+
+
 RetShowComposites:
 	pop		ebp
 	ret		4									; Pop off upperLimit
