@@ -7,13 +7,13 @@ TITLE  Crazy Composite Calculation (CS271_400_RickerCr_Project4.asm)
 ; Project Number: 3               Due Date: May 6, 2018
 ; Description:
 ; This program will repeatedly prompt the user to enter a number
-; If it is a negative number [-100, -1], accept number
-; If smaller than -100, throw out number and repeat prompt
-; If positive number entered, exit loop, and display average
+; In the range of [1, 400], check number
+; If within range, print out all compositve numbers (non prime)
 
 INCLUDE Irvine32.inc
 
-; (insert constant definitions here)
+LOWER_LIMIT		= 1							; Input can't be smaller than
+UPPER_LIMIT		= 400							; Input can't be larger than
 
 .data
 
@@ -23,6 +23,7 @@ userQues	BYTE	"What is your name: ",0
 userGreet	BYTE	"Well hello ",0
 expl1		BYTE	"Enter the number of compositve numbers you would like to see",0
 expl2		BYTE	"Be reasonable...lets say any integer [1, 400]",0
+oor			BYTE	"Out of range.",0
 enterNumb	BYTE	"Enter an integer between [1,400]:",0
 noInput		BYTE	"No negative numbers entered.", 0
 calcCount	BYTE	"Number of valid numbers		: ",0
@@ -31,8 +32,24 @@ calcAvg		BYTE	"Average of valid numbers	: ",0
 goodBye		BYTE	"Good bye, I hope you had fun ",0
 buffer		BYTE 21 DUP(0)						; input buffer
 
-inputNumb	DWORD ?								; Input number
+inputNumb	DWORD 0								; Input number
+counter		DWORD 0								; Count # printed entries
 .code
+
+
+
+main PROC
+	call	introduction						; Print instructions
+	push	OFFSET inputNumb					; Location to store input number
+	push	OFFSET enterNumb					; Explanation of input req
+	call	getUserData
+
+	push	inputNumb							; Push for call to showComposites
+	call	showComposites
+
+
+	exit	; exit to operating system
+main ENDP
 
 ;-------------------------------------------------------------------------------
 introduction PROC
@@ -80,15 +97,11 @@ getUserData PROC
 ;				an upper and a lower bound. Reprompt until satisfied
 ;
 ; Input:		prompt		text to explain input requrements
-;				lowerlimit	smallest acceptable int
-;				upperlimit	largest acceptable int
 ; Output:		number selected by user
-; Registers:	eax and edx are modified
+; Registers:	eax, and edx are modified
 ; StackFrame	ret addres			Address to return to
 ;				[ebp + 8]			prompt to print
-;				[ebp + 12]			lower limit
-;				[ebp + 16]			upper limit
-;				[ebp + 20]			return value
+;				[ebp + 12]			return value
 ;--------
 ;-------------------------------------------------------------------------------
 	push	ebp
@@ -97,16 +110,21 @@ getUserData PROC
 	mov		edx, [ebp + 8]						; Print prompt from stack
 	call	WriteString
 	call	ReadInt								; Read in number
-	mov		[ebp +20], eax						; Store number
+	mov		edx, [ebp + 12]
+	mov		[edx], eax						; Store number
 
-	cmp		[ebp +20], [ebp + 16]
-	jg		EntryLoop							; Too big
-	cmp		eax, [ebp + 12]
-	jl		EntryLoop							; Too small
+	push	eax									; Prepare for number check
+	call	validateInput						; Check if legal entry
+	cmp		edx, 1								; 1 = Acceptable
+	je		Return								; If not same, new number
+	mov		edx, OFFSET oor						; Print out error message
+	call	WriteString
+	call	CrLf
+	jmp		EntryLoop							; Invalid Number
 
-
+Return:
 	pop		ebp
-	ret		16									; Return 16, pushed 4 values
+	ret		8									; Return 16, pushed 4 values
 getUserData ENDP
 
 ;-------------------------------------------------------------------------------
@@ -118,32 +136,119 @@ validateInput PROC
 ;				lowerlimit	smallest acceptable int
 ;				upperlimit	largest acceptable int
 ; Output:		number selected by user
-; Registers:	eax and edx are modified
+; Registers:	Modifies edx, eax
 ; StackFrame	ret addres			Address to return to
-;				[ebp + 8]			prompt to print
-;				[ebp + 12]			lower limit
-;				[ebp + 16]			upper limit
-;				[ebp + 20]			return value
+;				[ebp + 8]			Number to check if within limits
+;--------
+;-------------------------------------------------------------------------------
+	push	ebp
+	mov		ebp, esp
+	
+	mov		eax, [ebp + 8]
+
+	cmp		eax, UPPER_LIMIT
+	jg		Invalid								; Too big
+	cmp		eax, LOWER_LIMIT
+	jl		Invalid								; Too small
+
+Valid:
+	mov		edx, 1								; They are the same
+	jmp		Return
+
+Invalid:
+	mov		edx, 0								; False, different
+
+
+Return:
+	pop		ebp
+	ret		4									; Pop off number to check
+
+validateInput ENDP
+
+
+;-------------------------------------------------------------------------------
+showComposites PROC
+; Description:	Print out all composite numbers between 1 and input
+;
+; Input:		upperLimit			Number to show until
+; Output:		Text printed only
+; Registers:	Modifies ecx, edx, eax
+; StackFrame	ret addres			Address to return to
+;				[ebp + 8]			upperLimit
+;--------
+;-------------------------------------------------------------------------------
+	push	ebp
+	mov		ebp, esp
+
+	mov		ecx, [ebp + 8]						; Set ecx up for loop
+	mov		eax, 1
+FindComposite:
+	push	eax
+	push	ecx									; Store ecx
+	push	eax									; Setup IsComposite
+	call	isComposite
+	pop		ecx									; Restore ecx
+	pop		eax
+	cmp		edx, 1								; See if prime
+	je		PrintComposite
+	cmp		ecx, 1
+	je		RetShowComposites
+	inc		eax
+	loop	FindComposite
+
+PrintComposite:
+	call	WriteDec
+	call	CrLf
+	loop	FindComposite
+RetShowComposites:
+	pop		ebp
+	ret		4									; Pop off upperLimit
+showComposites ENDP
+
+
+
+;-------------------------------------------------------------------------------
+isComposite PROC
+; Description:	Decides if input is a composite number or not
+;
+; Input:		compCheck			Number to check
+; Output:		0 or 1 if number is composite
+; Registers:	Modifies ecx, edx, eax
+; StackFrame	ret addres			Address to return to
+;				[ebp + 8]			compCheck
 ;--------
 ;-------------------------------------------------------------------------------
 	push	ebp
 	mov		ebp, esp
 
 
-validateInput ENDP
+	mov		ebx, [ebp + 8]						
+	cmp		ebx, 3
+	jle		IsPrime								; If < 3, prime
+	mov		ecx, 2								; Start out at 2
 
+TestPrime:
 
+	mov		eax, ebx
+	xor		edx, edx							; Clear edx
+	div		ecx									; Divide to see if remainder
+	cmp		edx, 0
+	je		NotPrime							; Cleanly devisible
+	inc		ecx
+	cmp		ecx, [ebp + 8]						; Break out if at end
+	je		IsPrime
+	jmp		TestPrime							; At end, increase size
 
-main PROC
-	call	introduction
-	push	OFFSET inputNumb					; Location to store input number
-	push	400									; Upper limit
-	push	1									; Lower limit
-	push	OFFSET enterNumb					; Explanation of input req
-	call	getUserData
-	exit	; exit to operating system
-main ENDP
+NotPrime:
+	mov		edx, 1
+	jmp		Return
 
-; (insert additional procedures here)
+IsPrime:
+	mov		edx, 0
+
+Return:
+	pop		ebp
+	ret		4									; Pop off upperLimit
+isComposite ENDP
 
 END main
