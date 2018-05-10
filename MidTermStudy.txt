@@ -1,0 +1,141 @@
+Skills to learn/Practice:
+    1. Hex/Dec/Binary conversion
+    2. 2's compliment (signed binary)
+    3. Hamming number
+    4. Corrupted Hamming number
+    5. Floating point representation
+    
+
+Lecture 1:
+Level 4: natural language/description of algorithm
+Level 3: high level programming code (python)
+Level 2: assembly language (machine specific code)
+Level 1: Program in machine code
+Level 0: Actual hardware
+
+Assembler: software system that takes assembly language as input, produces machine language as output
+
+ISA: instruction set architecture
+CISC: complex instruction set computer
+RISC: reduced instruction set computer
+
+Cross-assemblers(software) can be used to convert a machine language to another machine language
+Virtual machines(software) can be used to simulate another computer's architecture.
+Hardware: physical devices
+Software: instructions that control hardware
+
+Each assembly language instruction maps to one machine instruction in the computer’s instruction set.
+
+Lecture 2:
+Information is represented electrically (on/off) we represent this as 0/1
+Each 0/1 is a BInary digiT (bit)
+8 bits = byte
+CISC diagram:
+Periphreal devices: store/retrieve data (non-volatile, hard drive) convert data between human readable and machine readable
+I/O unit: communicate between CPU/Memory and peripheral devices
+Main Memory Unit: cells with addresses, store program and data, volatile
+CPU: central processing unit, execute machine instruction
+Bus: parallel wires for transfering data
+    Internal: among CPU components
+    Control: memory & I/O operations
+    address: links to specific memory location
+    Data: CPU <-> memory
+Register: fast local memory in CPU
+ALU: arithmetic/Logic Unit
+Microprogram: mico instructions in hardware to execute machine instruction
+Micromemory; actual hardware circuits that implement machine instructions as micoprograms
+Control: dictates current state of the machine•Status: indicates status of operation (error, overflow, etc.)
+MAR: Memory Address Register (holds address of memory location currently referenced)
+MDR: Memory Data Register: holds data being sent to or retrieved from the memory address in the MAR
+IP: Instruction Pointer (holds memory address of next instruction)
+IR: Instruction Register (holds current machine instruction)
+Operand_1,Operand_2,Result: ALU registers (for calculations and comparisons)
+General: fast temporary storage
+Cache: an area of comparatively fast temporary storagefor information copied from slower storage
+
+VonNeumann architecture: program is stored in memory
+
+Instruction Execution Cycle
+1. Fetch next instruction (at address in IP) into IR
+2. Increment IP to next instruction
+3. Decode instruction in IR
+4. If Instructions req mem access
+    A. Determine address
+    B. Fetch operand
+5. Execute
+6. repeat
+
+Current machine instructio held: IR
+Current micro-instructino: control register
+
+Lecture 3:
+b for bits
+B for Bytes
+1 Mib = 128 KiB
+
+Intel IA-32 Arch
+Two modes of operation:
+    protected
+    real address
+Two processors: integer, floating=point unit
+Byte smallest unit of data directly manipulated
+
+INSERT NOTES ABOUT REGISTERS HERE
+
+        |  AH  |  AL  |
+        |     AX      |
+|      EAX            |
+
+SI sub register of ESI
+
+1. 35 * 8 * 2^20
+
+Lecture 4:
+
+INCLUDE MEMROY IN EACH MODE/WAHT YOU CAN DO
+INCLUDE DATA TYPES AND SIZES
+.data segment:
+label   data_type   inititalizer    comment
+
+Bsic:
+    Immediate   Constant, literal, absolute
+    REgister    content of register
+    Direct      Contents of referenced memory
+    Offset      memory address, may be calculated
+Advanced:
+    register indirect   access memory through address in register
+    indexed             array element using offset
+    base-indexed        start address in one register, offset in another
+    stack               stack
+
+    
+Week 1 Summary questions:
+What is the name of the time delay in a CPU caused by differences between the speed of the CPU, the system bus, and memory circuits?
+    wait state
+Four parts of CPU Are:
+    clock, registers, control unit, artihmetic logic unit
+Three types of buses:
+    data, address, control
+Which two 32-bit registers are known as extended index registers?
+    ESI, EDI
+Directive: assembly time
+Instruction: runtime
+The listing file contains a list of program symbols.
+
+
+Week 2:
+Labels, end with colon, use meaning full labels
+changes EIP, but don't ever do directly
+INCLUDE DIFFERENT REQUIRED JUMPS
+INCLUDE IMPORTANT FLAGS
+Lecture 7:
+Pre-test loop (while)
+LABEL:
+    cmp eax, SOMETHING
+    do stuff
+    CONDITIONAL JUMPS
+    jmp LABEL
+Post test (do-while)
+loop:
+    uses ecx, decrements
+    

@@ -1,19 +1,20 @@
 TITLE  Crazy Composite Calculation (CS271_400_RickerCr_Project4.asm)
 
 ; Author: Craig Ricker
-; Last Modified: May 2, 2018
+; Last Modified: May 9, 2018
 ; OSU email address: rickercr@oregonstate.edu
 ; Course number/section: CS271_400_S2018
-; Project Number: 3               Due Date: May 6, 2018
+; Project Number: 4               Due Date: May 13, 2018
 ; Description:
 ; This program will repeatedly prompt the user to enter a number
 ; In the range of [1, 400], check number
-; If within range, print out all compositve numbers (non prime)
+; If within range, print out n compositve numbers (non prime)
 
 INCLUDE Irvine32.inc
 
-LOWER_LIMIT		= 1							; Input can't be smaller than
+LOWER_LIMIT		= 1								; Input can't be smaller than
 UPPER_LIMIT		= 400							; Input can't be larger than
+
 
 .data
 
@@ -21,6 +22,7 @@ intro		BYTE	"Welcome to 'Crazy Composite Calculation'",0
 intro1		BYTE	"Programmed by Craig Ricker",0
 userQues	BYTE	"What is your name: ",0
 userGreet	BYTE	"Well hello ",0
+ec1			BYTE	"Extra Credit #1: output columns are aligned!",0
 expl1		BYTE	"Enter the number of compositve numbers you would like to see",0
 expl2		BYTE	"Be reasonable...lets say any integer [1, 400]",0
 oor			BYTE	"Out of range.",0
@@ -30,22 +32,28 @@ calcCount	BYTE	"Number of valid numbers		: ",0
 calcSum		BYTE	"Sum of valid numbers		: ",0
 calcAvg		BYTE	"Average of valid numbers	: ",0
 goodBye		BYTE	"Good bye, I hope you had fun ",0
-buffer		BYTE 21 DUP(0)						; input buffer
+byeText		BYTE	"Good bye, thank you for playing!",0
+buffer		BYTE	21 DUP(0)					; input buffer
 
-inputNumb	DWORD 0								; Input number
-counter		DWORD 0								; Count # printed entries
+inputNumb	DWORD	0							; Input number
+counter		DWORD	0							; Count # printed entries
+spaceChar	BYTE	9,0							; Spaces to print
 .code
 
 
 
 main PROC
 	call	introduction						; Print instructions
+	mov		edx, OFFSET ec1
+	call	WriteString
+	call	CrLf
 	push	OFFSET inputNumb					; Location to store input number
 	push	OFFSET enterNumb					; Explanation of input req
 	call	getUserData
 
 	push	inputNumb							; Push for call to showComposites
 	call	showComposites
+	call	farewell
 
 
 	exit	; exit to operating system
@@ -111,7 +119,7 @@ getUserData PROC
 	call	WriteString
 	call	ReadInt								; Read in number
 	mov		edx, [ebp + 12]
-	mov		[edx], eax						; Store number
+	mov		[edx], eax							; Store number temp
 
 	push	eax									; Prepare for number check
 	call	validateInput						; Check if legal entry
@@ -196,15 +204,28 @@ FindComposite:
 
 PrintNewLine:
 	call	CrLf
+	mov		counter, 0
+	jmp		Finish
 
 PrintComposite:
 	call	WriteDec
-	call	CrLf
+	mov		edx, OFFSET spaceChar
+	call	WriteString
 	inc		eax
+	inc		counter
+	pushad
+	; store registers
+	; Calculate # to enter - ecx
+	mov		eax, 5
+	cmp		eax, counter
+	je		PrintNewLine
+Finish:
+	popad
 	loop	FindComposite
 
 
 RetShowComposites:
+	call	CrLf
 	pop		ebp
 	ret		4									; Pop off upperLimit
 showComposites ENDP
@@ -255,4 +276,20 @@ Return:
 	ret		4									; Pop off upperLimit
 isComposite ENDP
 
+;-------------------------------------------------------------------------------
+farewell PROC
+; Prints out text to user
+;
+; Input:		compCheck			Number to check
+; Output:		0 or 1 if number is composite
+; Registers:	Modifies ecx, edx, eax
+; StackFrame	ret addres			Address to return to
+;				[ebp + 8]			compCheck
+;--------
+;-------------------------------------------------------------------------------
+	mov		edx, OFFSET byeText
+	call	WriteString
+	call	CrLf
+	ret
+farewell ENDP
 END main
