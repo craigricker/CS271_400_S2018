@@ -207,51 +207,25 @@ sortArray PROC
 	; ecx will be used to track how far through array you are
 	; following pseudocode from teacher to do SelectionSort
 	; edi will be the array pointer, keeping this consistent
-	mov			ecx, 0
-	mov			edi, [ebp + 12]
+	mov		ecx, [ebp + 8]
+	dec		ecx
+	mov		edi, [ebp + 12]
 
+L1:
+	push	ecx
+	mov		esi, edi
 
-; At the begining of loop, you will use ecx from the previous round
-; This is why you begin with ecx as 0, the next number will always be larger
-; In this small case
-Start:
-	mov			eax, ecx
-	mov			ebx, ecx
+L2:
+	mov		eax, [esi]
+	cmp		[esi +4 ], eax
+	NOTJG	L3
+	xchg	eax, [esi + 4]
+	mov		[esi], eax
 
-; for(j=k+1; j<request; j++) {
-; 	if(array[j] > array[i])
-;		i = j;
-InnerLoop:
-	; First check if you have sorted the entire list, if so, break out of this portion 
-	inc			ebx
-	cmp			ebx, [ebp + 8]
-	je			outerLoop
-	; Otherwise, compare the next two items
-	mov			edx, [edi + ebx * 4]	; comparing a pair of elements whereas it is arr[j] to arr[i]
-	cmp			edx, [edi + eax * 4]
-	; If it is less, this is expected, go onto next item
-	; However, if they are out of order, you need to swap the two
-	jl			innerLoop				; if arr[i] is less jump back to the inner loop
-	pushad								; push register values onto stack to save them
-	mov			esi, [ebp + 12]
-	mov			ecx, 4
-	mul			ecx
-	add			esi, eax
-	push	esi
-	mov			eax, ebx
-	mul			ecx
-	add			edi, eax
-	push	edi
-	call	swapNodes				; if arr[i] is greater swap it with arr[j]
-	popad								; reinitialize the register values prior to pushad
-	jmp			innerLoop
+L3:
+	add esi, 4
+	loop L2
 
-OuterLoop
-
-	inc			ecx
-	cmp			ecx, [ebp + 8]
-	je			return					; returns if all elements have been sorted
-	jmp			start
 
 ReturnSort:
 	; Restore registers
