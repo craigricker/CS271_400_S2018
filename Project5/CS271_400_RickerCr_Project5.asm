@@ -16,7 +16,9 @@ MIN_REQUEST		= 10							; Smallest array size
 MAX_REQUEST		= 200							; Largest input array size
 LO_RANGE		= 100							; Smallest generated int
 HI_RANGE		= 999							; Largest generated int
-MAXSIZE	= 100
+MAXSIZE			= 100
+PER_ROW			= 10
+TAB				= 9
 
 
 .data
@@ -55,9 +57,8 @@ main PROC
 	call	fillArray			;Put that many squares into the array
 	push	OFFSET squareArray
 	push	count
-	;call	showRevList		;Print the array in reverse order
 	call	printArray
-	exit			;exit to operating system
+ 	exit			;exit to operating system
 main ENDP
 
 ; ***************************************************************
@@ -69,14 +70,14 @@ main ENDP
 ; ***************************************************************
 getCount	PROC
 	push	ebp
-	mov	ebp,esp
-	mov	edx,OFFSET prompt1
+	mov		ebp,esp
+	mov		edx,OFFSET prompt1
 	call	WriteString		;prompt user
 	call	ReadInt			;get user's number
-	mov	ebx,[ebp+8]		;address of count in ebx
-	mov	[ebx],eax			;store in global variable
-	pop	ebp
-	ret	4
+	mov		ebx,[ebp+8]		;address of count in ebx
+	mov		[ebx],eax			;store in global variable
+	pop		ebp
+	ret		4
 getCount	ENDP
 
 ; ***************************************************************
@@ -87,20 +88,35 @@ getCount	ENDP
 ; registers changed: eax, ebx, ecx, edi
 ; ***************************************************************
 fillArray	PROC
+	; Set up stack and store registers
 	push	ebp
 	mov		ebp,esp
-	mov		ecx,[ebp+8]		;count in ecx
-	mov		edi,[ebp+12]		;address of array in edi
+	pushad	
+
+	; ecx will track how far in the array we are, and edi will point
+	; to the current item
+	mov		ecx,[ebp+8]
+	mov		edi,[ebp+12]
+
+	; Set up registers to generate pseudo random number
+	mov		ebx, LO_RANGE
+	mov		edx, HI_RANGE
+	inc		edx
+	sub		edx, ebx
 	
-	mov	ebx,0
+	; Loop through the array, and fill with random numbers within 
+	; HI_RANGE and LO_RANGE
 again:
-	mov	eax,ebx			;calculate squares and store in consecutive array elements
-	mul	ebx
-	mov	[edi],eax
-	add	edi,4
-	inc	ebx
+	; Use Irvine function to calculate random integer
+	mov		eax,edx
+	call	RandomRange
+	; Store and increment array pointer
+	mov		[edi],eax
+	add		edi,4
 	loop	again
-	
+
+	; Restore registers
+	popad
 	pop	ebp
 	ret	8
 fillArray	ENDP
@@ -114,29 +130,24 @@ fillArray	ENDP
 ; registers changed: eax, ebx, edx, esi
 ; ***************************************************************
 showRevList	PROC
+	; Set up stack and store registers
 	push	ebp
-	mov	ebp,esp
-	mov	edx,[ebp+8]		;count in edx
-	mov	esi,[ebp+12]		;address of array in esi
-	dec	edx				;scale edx for [count-1 down to 0]
+	mov		ebp, esp
+	pushad
 
-more:
-	mov	eax,edx			;display n
+	mov		edi, [ebp + 12]
+	mov		ecx, [ebp + 8]
+ArrayLoop:
+	mov		eax, [edi]
 	call	WriteDec
-	mov	al,'.'
-	call	WriteChar
-	mov	al,32
-	call	WriteChar
-	call	WriteChar
-	mov	eax,[esi+edx*4]	;start with last element
-	call	WriteDec			;display n-squared
 	call	CrLf
-	dec	edx
-	cmp	edx,0
-	jge	more
-	
-	pop	ebp
-	ret	8
+	add		edi, 4
+	loop	ArrayLoop
+
+	; Restore registers
+	popad
+	pop		ebp
+	ret		4
 showRevList	ENDP
 
 ;-------------------------------------------------------------------------------
@@ -149,28 +160,130 @@ printArray PROC
 ; Registers:	Use and restore: ebp, edi, ecx & edx
 ;--------
 ;-------------------------------------------------------------------------------
+	; Set up stack frame and store registers
 	push	ebp
 	mov		ebp, esp
-	; Store registers
-	push	edi
-	push	ecx
-	push	eax
-
+	pushad
+	; ecx is array length, edi is array pointer and ebx
+	; will be used to decide if a new line is required
 	mov		edi, [ebp + 12]
 	mov		ecx, [ebp + 8]
+	mov		ebx, 0
 ArrayLoop:
+	; Print out an item, and increase print cout
 	mov		eax, [edi]
 	call	WriteDec
+	inc		ebx
+	; If printed out PER_ROW, print new line, otherwise print a tab
+	cmp		ebx, PER_ROW
+	je		NewRow
+	mov		al, TAB
+	call	WriteChar
+	jmp IncrementArray
+
+NewRow:
+	; Print new line, and reset count per line to zero
 	call	CrLf
+	mov		ebx, 0
+	jmp		IncrementArray
+
+IncrementArray:
+	; Increment array pointer
 	add		edi, 4
 	loop	ArrayLoop
 
 	; Restore registers
-	pop		eax
-	pop		ecx
-	pop		edi
+	popad
 	pop		ebp
 	ret		4
 printArray ENDP
+
+sortArray PROC
+; Set up stack frame and store registers
+	push	ebp
+	mov		ebp, esp
+	pushad
+
+	; ecx will be used to track how far through array you are
+	; following pseudocode from teacher to do SelectionSort
+	; edi will be the array pointer, keeping this consistent
+	mov			ecx, 0
+	mov			edi, [ebp + 12]
+
+
+; At the begining of loop, you will use ecx from the previous round
+; This is why you begin with ecx as 0, the next number will always be larger
+; In this small case
+Start:
+	mov			eax, ecx
+	mov			ebx, ecx
+
+; for(j=k+1; j<request; j++) {
+; 	if(array[j] > array[i])
+;		i = j;
+InnerLoop:
+	; First check if you have sorted the entire list, if so, break out of this portion 
+	inc			ebx
+	cmp			ebx, [ebp + 8]
+	je			outerLoop
+	; Otherwise, compare the next two items
+	mov			edx, [edi + ebx * 4]	; comparing a pair of elements whereas it is arr[j] to arr[i]
+	cmp			edx, [edi + eax * 4]
+	; If it is less, this is expected, go onto next item
+	; However, if they are out of order, you need to swap the two
+	jl			innerLoop				; if arr[i] is less jump back to the inner loop
+	pushad								; push register values onto stack to save them
+	mov			esi, [ebp + 12]
+	mov			ecx, 4
+	mul			ecx
+	add			esi, eax
+	push	esi
+	mov			eax, ebx
+	mul			ecx
+	add			edi, eax
+	push	edi
+	call	swapNodes				; if arr[i] is greater swap it with arr[j]
+	popad								; reinitialize the register values prior to pushad
+	jmp			innerLoop
+
+OuterLoop
+
+	inc			ecx
+	cmp			ecx, [ebp + 8]
+	je			return					; returns if all elements have been sorted
+	jmp			start
+
+ReturnSort:
+	; Restore registers
+	popad
+	pop		ebp
+	ret		4
+sortArray ENDP
+
+swapNodes PROC
+	; Set up stack frame and store registers
+	push	ebp
+	mov		ebp, esp
+	pushad
+
+
+	; Swap two values. Overly complicated because you can't swap [] to []
+	; First must store each memory location, and then put value into temp
+	; container. Swap values, and then return
+	mov		esi, [ebp + 12]
+	mov		edi, [ebp + 8]
+	mov		edx, [edi]
+	mov		ecx, [esi]
+	mov		[edi], ecx
+	mov		[esi], edx
+
+
+	; Restore registers
+	popad
+	pop		ebp
+	ret		4
+swapNodes ENDP
+	
+
 
 END main
