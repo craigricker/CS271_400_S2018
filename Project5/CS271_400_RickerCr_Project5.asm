@@ -16,36 +16,28 @@ MIN_REQUEST		= 10							; Smallest array size
 MAX_REQUEST		= 200							; Largest input array size
 LO_RANGE		= 100							; Smallest generated int
 HI_RANGE		= 999							; Largest generated int
-MAXSIZE			= 100
 PER_ROW			= 10
 TAB				= 9
 
 
 .data
 
-intro		BYTE	"Welcome to 'Pseudo-random Integer Array Filler'",0
-intro1		BYTE	"Programmed by Craig Ricker",0
-userQues	BYTE	"What is your name: ",0
-userGreet	BYTE	"Well hello ",0
-ec1			BYTE	"Extra Credit #1: output columns are aligned!",0
-expl1		BYTE	"You will be prompted to enter an integer for the array size, then it will randomly be filled",0
-expl2		BYTE	"Be reasonable...lets say any integer [1, 400]",0
-oor			BYTE	"Out of range.",0
-enterNumb	BYTE	"Enter an integer between [1,400]:",0
-noInput		BYTE	"No negative numbers entered.", 0
-calcCount	BYTE	"Number of valid numbers		: ",0
-calcSum		BYTE	"Sum of valid numbers		: ",0
-calcAvg		BYTE	"Average of valid numbers	: ",0
-goodBye		BYTE	"Good bye, I hope you had fun ",0
-byeText		BYTE	"Good bye, thank you for playing!",0
-buffer		BYTE	21 DUP(0)					; input buffer
+ec1			BYTE	"Extra Credit #1: output columns are aligned! ",0
+introP		BYTE	"Welcome to 'Pseudo-random Integer Array Filler' "
+intro2P		BYTE	"Programmed by Craig Ricker. ",
+expl1P		BYTE	"You will be prompted to enter an integer for the array size. "
+expl2P		BYTE	"The array will then be filled, displayed, the median displayed, and the sorted array displayed.",0
+rangeP		BYTE	"Enter an integer between [10,200]:",0
+unsortedP	BYTE	"The array unsorted is:", 0
+sortedP		BYTE	"The array sorted is:", 0
+medP		BYTE	"The median number is: ",0
+
 
 count		DWORD	10							; Input number
-counter		DWORD	0							; Count # printed entries
 spaceChar	BYTE	9,0							; Spaces to print
 prompt1		BYTE		"How many squares ",0
 userArray	DWORD	MAX_REQUEST		DUP(9)
-squareArray	DWORD	MAXSIZE DUP(?)
+squareArray	DWORD	MAX_REQUEST		 DUP(?)
 .code
 
 
@@ -58,6 +50,22 @@ main PROC
 	push	OFFSET squareArray
 	push	count
 	call	printArray
+	; Sort array, and then print
+	mov		edx, OFFSET sorted
+	call	WriteString
+	call	CrLf
+	push	OFFSET squareArray
+	push	count
+	call	sortArray
+	push	OFFSET squareArray
+	push	count
+	call	printArray
+	
+	; Calculate and print median
+	push	OFFSET medPrompt
+	push	OFFSET squareARray
+	push	count
+	call	displayMedian
  	exit			;exit to operating system
 main ENDP
 
@@ -192,6 +200,8 @@ IncrementArray:
 	add		edi, 4
 	loop	ArrayLoop
 
+	; Print out new line
+	call	CrLf
 	; Restore registers
 	popad
 	pop		ebp
@@ -211,53 +221,87 @@ sortArray PROC
 	dec		ecx
 	mov		edi, [ebp + 12]
 
+; Store ecx for outer loop, and begin at beginning of array
 L1:
 	push	ecx
-	mov		esi, edi
+	mov		esi,edi
 
-L2:
-	mov		eax, [esi]
-	cmp		[esi +4 ], eax
-	NOTJG	L3
-	xchg	eax, [esi + 4]
-	mov		[esi], eax
+; Will get current value place into eax, then compare to 
+; next value in array, and place accordingly
+L2: 
+	mov		eax,[esi] ; get array value
+	cmp		[esi+4],eax ; compare a pair of values
+	jl		L3 ; if [ESI] <= [ESI+4], no exchange
+	xchg	eax,[esi+4] ; exchange the pair
+	mov		[esi],eax
 
+
+; Move both pointers forward by 2, loop back to the begining
+; pop ecx is because loop requires ecx only
 L3:
-	add esi, 4
-	loop L2
+	add		esi,4
+	loop	L2 
+	pop		ecx
+	loop	L1 
 
 
-ReturnSort:
-	; Restore registers
+; Restore registers and returns
+L4:
 	popad
 	pop		ebp
-	ret		4
+	ret		8
 sortArray ENDP
 
-swapNodes PROC
-	; Set up stack frame and store registers
+displayMedian PROC
 	push	ebp
 	mov		ebp, esp
 	pushad
 
+	; Print out median prompt
+	mov		edx, [ebp + 16]
+	call WriteString
 
-	; Swap two values. Overly complicated because you can't swap [] to []
-	; First must store each memory location, and then put value into temp
-	; container. Swap values, and then return
-	mov		esi, [ebp + 12]
-	mov		edi, [ebp + 8]
-	mov		edx, [edi]
-	mov		ecx, [esi]
-	mov		[edi], ecx
-	mov		[esi], edx
+	; Load pointer array into memory
+	mov		edi, [ebp + 12]
+
+	; Calculate if array size is even or odd, calculate accordingly
+	; Divide by two, of no remainder, even
+	mov		eax, [ebp +8]
+	cdq
+	mov		ebx, 2
+	div		ebx
+	cmp		edx, 0
+	je		EvenArray
+
+; For odd array, easier case, just take middle element
+; Just move into eax, then jump
+OddArray:
+	mov		eax, [edi + eax * 4]
+	jmp		RetDisplayMedian
+
+; For even array, take two center numbers and average them
+; eax already contains the middle number caclulated above
+EvenArray:
+	; Store the two numbers into ecx and ebx, then average
+	mov		ecx, [edi + eax * 4]
+	dec		eax
+	mov		ebx, [edi + eax * 4]
+	mov		eax, ebx
+	add		eax, ecx
+	mov		ebx, 2
+	div		ebx
+	jmp		RetDisplayMedian
 
 
-	; Restore registers
+RetDisplayMedian:
+	call	WriteDec
+	mov		al, '.'
+	call	WriteChar
+	call	CrLf
+	; Restore registers and returns
 	popad
 	pop		ebp
-	ret		4
-swapNodes ENDP
-	
-
+	ret		12
+displayMedian ENDP
 
 END main
