@@ -6,9 +6,11 @@ TITLE Pseudo-random Integer Array Filler (CS271_400_RickerCr_Project5.asm)
 ; Course number/section: CS271_400_S2018
 ; Project Number: 5               Due Date: May 27, 2018
 ; Description:
-; This program will repeatedly prompt the user to enter a number
-; In the range of [1, 400], check number
-; If within range, print out n compositve numbers (non prime)
+; This program will prompt the user to enter an integer, validate it
+; It will then fill the array with random integers between 
+; LO_RANGE and HI_RANGE. It will then display the median, and sorted
+; array. Even though this is the order things happen, actually sort 
+; array before median to make calculation easy
 
 INCLUDE Irvine32.inc
 
@@ -34,9 +36,6 @@ medP		BYTE	"The median number is: ",0
 
 
 count		DWORD	10							; Input number
-spaceChar	BYTE	9,0							; Spaces to print
-prompt1		BYTE		"How many squares ",0
-userArray	DWORD	MAX_REQUEST		DUP(9)
 squareArray	DWORD	MAX_REQUEST		 DUP(?)
 .code
 
@@ -88,7 +87,18 @@ main PROC
 main ENDP
 
 
+;-------------------------------------------------------------------------------
 intro PROC
+; Description:	Prints out an introduction to the user
+;				
+;
+; Input:		prompt		text to introduce program
+; Output:		None
+; Registers:	None modified
+; StackFrame	ret addres			Address to return to
+;				[ebp + 8]			prompt to print
+;--------
+;-------------------------------------------------------------------------------
 	; Set up stack and store registers
 	push	ebp
 	mov		ebp,esp
@@ -98,7 +108,7 @@ intro PROC
 	mov		edx, [ebp + 8]
 	call	WriteString
 	call	CrLf
-
+	; Restore registers
 	popad
 	pop	ebp
 	ret 4
@@ -112,10 +122,9 @@ getUserData PROC
 ;
 ; Input:		prompt		text to explain input requirements
 ; Output:		number selected by user
-; Registers:	eax, and edx are modified
+; Registers:	None modified
 ; StackFrame	ret addres			Address to return to
 ;				[ebp + 8]			prompt to print
-;				[ebp + 12]			return value
 ;--------
 ;-------------------------------------------------------------------------------
 	; Set up stack and store registers
@@ -123,24 +132,26 @@ getUserData PROC
 	mov		ebp,esp
 	pushad	
 
+	; Repeatedly prompt user until int within range is entered
 EntryLoop:
 	mov		edx, [ebp + 8]						; Print prompt from stack
 	call	WriteString
 	call	ReadInt								; Read in number
 	call	CrLf
 
+	; Make a call to validateInput to check if within range
+	; Boolean check
+	push	eax				
+	call	validateInput	
+	pop		edx				
+	cmp		edx, 1			
+	je		Return			
+	jmp		EntryLoop		
 
-	push	eax									; Prepare for number check
-	call	validateInput						; Check if legal entry
-	pop		edx									; Get return 
-	cmp		edx, 1								; 1 = Acceptable
-	je		Return								; If not same, new number
-	jmp		EntryLoop							; Invalid Number
-
-Return:
 	; Restore registers
 	; Store return value currently in eax into same memory location
 	; Don't pop off, allow to happen in upper level to return number
+Return:
 	mov		[ebp + 8], eax
 	popad
 	pop	ebp
@@ -156,7 +167,7 @@ validateInput PROC
 ;				lowerlimit	smallest acceptable int
 ;				upperlimit	largest acceptable int
 ; Output:		number selected by user
-; Registers:	Modifies edx, eax
+; Registers:	None
 ; StackFrame	ret addres			Address to return to
 ;				[ebp + 8]			Number to check if within limits
 ;--------
@@ -168,36 +179,47 @@ validateInput PROC
 	
 	mov		eax, [ebp + 8]
 
+	; If within range, it is valid
 	cmp		eax, MAX_REQUEST
 	jg		Invalid								; Too big
 	cmp		eax, MIN_REQUEST
 	jl		Invalid								; Too small
 
+	; Valid, aka true
 Valid:
 	mov		edx, 1								; They are the same
 	jmp		Return
 
+	; Invalid, aka false
 Invalid:
 	mov		edx, 0								; False, different
 
-
+	; Restore registers
+	; Store return value currently in EDX into same memory location
 Return:
 	mov		[ebp + 8], edx
 	popad
 	pop		ebp
 	ret
-
 validateInput ENDP
 
 
-; ***************************************************************
-; Procedure to put count squares into the array.
-; receives: address of array and value of count on system stack
-; returns: first count elements of array contain consecutive squares
-; preconditions: count is initialized, 1 <= count <= 100
-; registers changed: eax, ebx, ecx, edi
-; ***************************************************************
-fillArray	PROC
+;-------------------------------------------------------------------------------
+;--------
+fillArray PROC
+; Description:	Loops through array and fills with random int within range
+;				specified by LO_RANGE and HI_RANGE
+;				Adapted from teacher provided code
+;
+; Input:		count - array size
+;				array memory location
+; Output:		Filled array
+; Registers:	None
+; StackFrame	ret addres			Address to return to
+;				[ebp + 8]			Number of elements in array
+;				[ebp + 12]			Beginning of array
+;--------
+;-------------------------------------------------------------------------------
 	; Set up stack and store registers
 	push	ebp
 	mov		ebp,esp
@@ -242,7 +264,7 @@ printArray PROC
 ; Input:		Input 1: Array memory location
 ;				Input 2: Array size.
 ; Output:		No output is created
-; Registers:	Use and restore: ebp, edi, ecx & edx
+; Registers:	No registers modified
 ;--------
 ;-------------------------------------------------------------------------------
 	; Set up stack frame and store registers
@@ -261,6 +283,7 @@ printArray PROC
 	call	WriteString
 	call	CrLf
 
+	; Actual code that will loop through array
 ArrayLoop:
 	; Print out an item, and increase print cout
 	mov		eax, [edi]
@@ -284,34 +307,50 @@ IncrementArray:
 	add		edi, 4
 	loop	ArrayLoop
 
-	; Print out new line
+	; Print out new lines for appearances
 	call	CrLf
-	; Restore registers
+	call	CrLf
+
+	; Restore registers & return
 	popad
 	pop		ebp
 	ret		12
 printArray ENDP
 
+
+;-------------------------------------------------------------------------------
+;--------
 sortArray PROC
-; Set up stack frame and store registers
+; Description:	Loops through array and sorts array. Uses code adapted from
+;				Irvine text book, section 9.5
+;
+; Input:		count - array size
+;				array memory location
+; Output:		Sorted array
+; Registers:	None
+; StackFrame	ret addres			Address to return to
+;				[ebp + 8]			Number of elements in array
+;				[ebp + 12]			Beginning of array
+;--------
+;-------------------------------------------------------------------------------
+	; Set up stack frame and store registers
 	push	ebp
 	mov		ebp, esp
 	pushad
 
 	; ecx will be used to track how far through array you are
-	; following pseudocode from teacher to do SelectionSort
 	; edi will be the array pointer, keeping this consistent
 	mov		ecx, [ebp + 8]
 	dec		ecx
 	mov		edi, [ebp + 12]
 
-; Store ecx for outer loop, and begin at beginning of array
+	; Store ecx for outer loop, and begin at beginning of array
 L1:
 	push	ecx
 	mov		esi,edi
 
-; Will get current value place into eax, then compare to 
-; next value in array, and place accordingly
+	; Will get current value place into eax, then compare to 
+	; next value in array, and place accordingly
 L2: 
 	mov		eax, [esi] 
 	cmp		[esi + 4], eax 
@@ -319,9 +358,8 @@ L2:
 	xchg	eax, [esi + 4]
 	mov		[esi], eax
 
-
-; Move both pointers forward by 2, loop back to the begining
-; pop ecx is because loop requires ecx only
+	; Move both pointers forward by 2, loop back to the begining
+	; pop ecx is because loop requires ecx only
 L3:
 	add		esi,4
 	loop	L2 
@@ -329,14 +367,31 @@ L3:
 	loop	L1 
 
 
-; Restore registers and returns
+	; Restore registers and returns
 L4:
 	popad
 	pop		ebp
 	ret		8
 sortArray ENDP
 
+
+;-------------------------------------------------------------------------------
+;--------
 displayMedian PROC
+; Description:	Using sorted array, calculates and displays median vlaue
+;
+; Input:		count - array size
+;				array memory location
+;				prompt to print
+;
+; Output:		Median of input array
+; Registers:	None
+; StackFrame	ret addres			Address to return to
+;				[ebp + 8]			Number of elements in array
+;				[ebp + 12]			Beginning of array
+;				[ebp + 16]			Prompt to print
+;--------
+;-------------------------------------------------------------------------------
 	push	ebp
 	mov		ebp, esp
 	pushad
@@ -357,14 +412,14 @@ displayMedian PROC
 	cmp		edx, 0
 	je		EvenArray
 
-; For odd array, easier case, just take middle element
-; Just move into eax, then jump
+	; For odd array, easier case, just take middle element
+	; Just move into eax, then jump
 OddArray:
 	mov		eax, [edi + eax * 4]
 	jmp		RetDisplayMedian
 
-; For even array, take two center numbers and average them
-; eax already contains the middle number caclulated above
+	; For even array, take two center numbers and average them
+	; eax already contains the middle number caclulated above
 EvenArray:
 	; Store the two numbers into ecx and ebx, then average
 	mov		ecx, [edi + eax * 4]
@@ -376,7 +431,7 @@ EvenArray:
 	div		ebx
 	jmp		RetDisplayMedian
 
-
+	; Print value to user
 RetDisplayMedian:
 	call	WriteDec
 	mov		al, '.'
