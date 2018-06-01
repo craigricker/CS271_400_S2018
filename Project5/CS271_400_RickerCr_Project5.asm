@@ -23,7 +23,6 @@ TAB				= 9
 
 
 .data
-
 ec1			BYTE	"Extra Credit #1: output columns are aligned! ",0
 introP		BYTE	"Welcome to 'Pseudo-random Integer Array Filler' "
 intro2P		BYTE	"Programmed by Craig Ricker. "
@@ -34,12 +33,10 @@ unsortedP	BYTE	"The array unsorted is:", 0
 sortedP		BYTE	"The array sorted is:", 0
 medP		BYTE	"The median number is: ",0
 
-
 count		DWORD	10							; Input number
 squareArray	DWORD	MAX_REQUEST		 DUP(?)
+
 .code
-
-
 main PROC
 	; Seed random number generator
 	call	Randomize
