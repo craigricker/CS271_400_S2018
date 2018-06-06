@@ -11,7 +11,7 @@ TITLE I/O Macro Madness (CS271_400_RickerCr_Project6.asm)
 INCLUDE Irvine32.inc
 
 ;-------------------------------------------------------------------------------
-;	displayString MACRO printAddress, 
+displayString MACRO printAddress,
 ;-------------------------------------------------------------------------------
 ; Prints dsipaly at address printAddress
 	; Store edx, move to offset, print then restore
@@ -57,7 +57,7 @@ getPrompt	BYTE	"Enter your float here:",0
 buffer			BYTE	255 DUP(0)
 
 count		DWORD	10							; Input number
-squareArray	DWORD	MAX_REQUEST		 DUP(?)
+
 
 
 
@@ -65,8 +65,12 @@ squareArray	DWORD	MAX_REQUEST		 DUP(?)
 .code
 main PROC
 	getString		OFFSET buffer, OFFSET getPrompt, SIZEOF buffer
-	mov		ecx, OFFSET buffer""
+	mov		ecx, OFFSET buffer
 	displayString	ecx
+	call	CrLf
+	push	20
+	push	OFFSET buffer
+	call	WriteVal
  	exit			;exit to operating system
 main ENDP
 
@@ -111,7 +115,7 @@ RemoveNumber:
 	cmp		eax, 0
 	jne		RemoveNumber
 
-	displayString	[ebo + 8]
+	displayString	[ebp + 8]
 
 
 
@@ -120,7 +124,7 @@ RemoveNumber:
 	popad
 	pop	ebp
 	ret 8
-intro ENDP
+writeVal ENDP
 
 
 END main
