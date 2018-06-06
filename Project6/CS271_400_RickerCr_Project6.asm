@@ -38,6 +38,9 @@ getString MACRO storeAddress, promptAddress, stringSize
 	pop		ecx
 ENDM
 
+BASE		= 10
+ASII_OFFSET	= 48
+
 
 .data
 ec1			BYTE	"Extra Credit #1: output columns are aligned! ",0
@@ -62,7 +65,7 @@ squareArray	DWORD	MAX_REQUEST		 DUP(?)
 .code
 main PROC
 	getString		OFFSET buffer, OFFSET getPrompt, SIZEOF buffer
-	mov		ecx, OFFSET buffer
+	mov		ecx, OFFSET buffer""
 	displayString	ecx
  	exit			;exit to operating system
 main ENDP
@@ -84,14 +87,39 @@ writeVal PROC
 	; Set up stack and store registers
 	push	ebp
 	mov		ebp,esp
-	pushad	
+	pushad
+
+	; Initalize values based on input
+	mov		eax, [ebp + 12]
+	mov		edi, [ebp + 8]
+	mov		ebx, BASE
+	push	0
+
+mathSection:
+	mov		edx, 0
+	div		ebx
+	add		edx, ASII_OFFSET
+	push edx
+
+	cmp		eax, 0
+	jne		mathSection
+
+RemoveNumber:
+	pop		[edi]
+	mov		eax, [edi]
+	inc		edi
+	cmp		eax, 0
+	jne		RemoveNumber
+
+	displayString	[ebo + 8]
+
 
 
 
 	; Restore registers
 	popad
 	pop	ebp
-	ret 
+	ret 8
 intro ENDP
 
 
