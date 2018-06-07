@@ -43,7 +43,8 @@ ASII_OFFSET	= 48
 
 
 .data
-ec1			BYTE	"Extra Credit #1: output columns are aligned! ",0
+ec			BYTE	"Extra Credit #1: input numbered, running sum displayed ",13,10
+			BYTE	"Extra Credit #3: ReadVal and WriteVal are recursive",13,10,0
 introP		BYTE	"Welcome to 'Recursive Macro Math' ",13,10
 intro2P		BYTE	"Programmed by Craig Ricker. ",13,10
 expl1P		BYTE	"You will be prompted to enter ten integers.",13,10
@@ -51,7 +52,10 @@ expl2P		BYTE	"These ten values will be stored in an array, you will then be show
 expl3P		BYTE	" the sum of the array, and the average value",13,10,0
 getPrompt	BYTE	9,9,". Enter next integer here:",0
 errPrompt	BYTE	"You need to enter a 'good' integer that will fit in a 32 bit register",13,10,0
-inputP		BYTE	9,":","'good' values. Rolling sum: ",0
+inputP		BYTE	" :","integers. Subtotal: ",0
+sumP		BYTE	"The sum of these numbers is :",9,9, 0
+avgP		BYTE	"The average of these numbers is:",9,0
+goodbyeP	BYTE	"Thanks for playing, and goodbye!",0
 
 
 buffer			BYTE	255 DUP(0)
@@ -69,6 +73,7 @@ inputCount	DWORD	1
 .code
 main PROC
 	displayString OFFSET introP
+	displayString OFFSET ec
 
 	; Initialize registers for looping
 	mov		eax, 0			; Rolling sum
@@ -105,13 +110,30 @@ BadInput:
 
 
 GoodInput:
+	; Store before increasing
+	mov		inputCount, ecx
 	inc		ecx
 	add		eax, input
+	mov		calcSum, eax
 
 	cmp		ecx, BASE + 1
 	jne		GetInput
 
 	; Print array, sum, and average
+	displayString OFFSET sumP
+	push	calcSum
+	push	OFFSET printBuffer
+	call	WriteVal
+	call	CrLf
+	displayString OFFSET avgP
+	; clear edx, just in case
+	mov		edx, 0
+	div		inputCount
+	push	eax
+	push	OFFSET printBuffer
+	call	WriteVal
+	call	CrLf
+	
  	exit			;exit to operating system
 main ENDP
 
@@ -278,9 +300,10 @@ writeVal PROC
 
 
 PrintReturn:
+	mov		edi, [ebp + 8]
+	mov		eax, edx
+	displayString	edi
 	; Change this to use macro, and not call to write char
-	mov		al, dl
-	call	WriteChar
 	; Restore registers
 	popad
 	pop	ebp
