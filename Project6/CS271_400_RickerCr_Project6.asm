@@ -24,7 +24,7 @@ ENDM
 ;-------------------------------------------------------------------------------
 ;	Prints prompt located at promptAddress, and then stores into
 ;	storeAddress which is string length of stringSize
-getString MACRO storeAddress, promptAddress, stringSize
+getString MACRO storeAddress, stringSize, promptAddress
 ;-------------------------------------------------------------------------------
 	; Store registers, print prompt read into variable, restore
 	push	ecx
@@ -55,8 +55,9 @@ medP		BYTE	"The median number is: ",0
 getPrompt	BYTE	"Enter your float here:",0
 
 buffer			BYTE	255 DUP(0)
+printBuffer	BYTe	"F",0
 
-count		DWORD	10							; Input number
+input		DWORD	10							; Input number
 
 
 
@@ -64,15 +65,110 @@ count		DWORD	10							; Input number
 
 .code
 main PROC
-	getString		OFFSET buffer, OFFSET getPrompt, SIZEOF buffer
-	mov		ecx, OFFSET buffer
-	displayString	ecx
-	call	CrLf
-	push	20
+;	getString		OFFSET buffer, OFFSET getPrompt, SIZEOF buffer
+;	mov		ecx, OFFSET buffer
+;	displayString	ecx
+;	call	CrLf
+;	push	123
+;	push	OFFSET printBuffer
+;	call	WriteVal
+;	call	CrLf
+	push	input
 	push	OFFSET buffer
-	call	WriteVal
+	push	SIZEOF buffer
+	call	ReadVal
+	pop		input
+	call	CrLf
+	call	CrLf
+	mov		eax, input
+	call	WriteInt
  	exit			;exit to operating system
 main ENDP
+
+;-------------------------------------------------------------------------------
+readVal PROC
+; Description:	Converts string to integer, does input check as well
+;				
+;
+; Input:		buffer size		[ebp + 8]	size of the array
+;				buffer offset	[ebp + 12]	Location of array
+;				return location	[ebp + 16] where to return to
+; Output:		None
+; Registers:	None modified
+; StackFrame	ret addres			Address to return to
+;				[ebp + 8]			prompt to print
+;--------
+;-------------------------------------------------------------------------------
+	; Set up stack and store registers
+	push	ebp
+	mov		ebp,esp
+	pushad
+
+	; Move values from stack for easier reading
+	mov		edx, [ebp + 12]
+	mov		ecx, [ebp + 8]
+
+	; Get input
+	getString [ebp + 12], [ebp + 8], OFFSET getPrompt
+
+	; Initialize registers for looping
+InitLoop:
+	mov		esi, [ebp + 12]
+	mov		eax, 0
+	mov		ecx, 0
+	mov		ebx, BASE
+
+	; Load string byte by byte (literally!), check if null term string
+	; If it isn't, check if valid input
+	; If null string, break out of loop
+Reader:
+	lodsb
+	cmp		ax, 0
+	je		RestoreReturn
+	
+	; Check if within range
+	cmp		ax, 48
+	jb		InvalidInput
+	cmp		ax, 57
+	ja		InvalidInput
+
+	; Need to convert from integer number, to ASCII representation
+	; To do this, simply subtract 48
+	sub		ax, 48
+	; Swap eax and ecx registers, this is required because of how
+	; loadsb and mul both behave
+	xchg	eax, ecx
+	mul		ebx
+	; Check if overflow, shouldn't be required but still good to check
+	jc		InvalidInput
+
+	; If valid input, add to running total, read next digit
+	; Swap registers back, continue reading
+	ValidInput:
+	add		eax, ecx
+	xchg	eax, ecx
+	jmp		Reader
+
+
+	InvalidInput:
+	displayString	OFFSET invalidInput
+	jmp InitLoop
+
+
+
+
+
+
+RestoreReturn:
+	xchg	ecx, eax
+	mov		[ebp + 16], eax
+	; Restore registers
+	popad
+	pop	ebp
+	ret 8
+readVal ENDP
+
+
 
 
 ;-------------------------------------------------------------------------------
@@ -97,29 +193,32 @@ writeVal PROC
 	mov		eax, [ebp + 12]
 	mov		edi, [ebp + 8]
 	mov		ebx, BASE
-	push	0
 
-mathSection:
+
+	; Div by 10, remainder is least sig digit
+	; Increase by ASCII_OFFSET to make into string
 	mov		edx, 0
 	div		ebx
 	add		edx, ASII_OFFSET
-	push edx
 
+	; Check if you are at the end of the number
+	; If not, go one level deeper
+	; Otherwise, begin printing out digits
 	cmp		eax, 0
-	jne		mathSection
-
-RemoveNumber:
-	pop		[edi]
-	mov		eax, [edi]
-	inc		edi
-	cmp		eax, 0
-	jne		RemoveNumber
-
-	displayString	[ebp + 8]
+	je		PrintReturn
 
 
 
+	push	eax
+	push	[ebp + 8]
+	call	writeVal
 
+
+
+PrintReturn:
+	; Change this to use macro, and not call to write char
+	mov		al, dl
+	call	WriteChar
 	; Restore registers
 	popad
 	pop	ebp
