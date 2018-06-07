@@ -1,4 +1,4 @@
-TITLE I/O Macro Madness (CS271_400_RickerCr_Project6.asm)
+TITLE Recursive Macro Math (CS271_400_RickerCr_Project6.asm)
 
 ; Author: Craig Ricker
 ; Last Modified: June 7, 2018
@@ -44,20 +44,23 @@ ASII_OFFSET	= 48
 
 .data
 ec1			BYTE	"Extra Credit #1: output columns are aligned! ",0
-introP		BYTE	"Welcome to 'I/O Macro Madness' "
-intro2P		BYTE	"Programmed by Craig Ricker. "
-expl1P		BYTE	"You will be prompted to enter an integer for the array size. "
-expl2P		BYTE	"The array will then be filled, displayed, the median displayed, and the sorted array displayed.",0
-rangeP		BYTE	"Enter an integer between [10,200]:",0
-unsortedP	BYTE	"The array unsorted is:", 0
-sortedP		BYTE	"The array sorted is:", 0
-medP		BYTE	"The median number is: ",0
-getPrompt	BYTE	"Enter your float here:",0
+introP		BYTE	"Welcome to 'Recursive Macro Math' ",13,10
+intro2P		BYTE	"Programmed by Craig Ricker. ",13,10
+expl1P		BYTE	"You will be prompted to enter ten integers.",13,10
+expl2P		BYTE	"These ten values will be stored in an array, you will then be shown the array,"
+expl3P		BYTE	" the sum of the array, and the average value",13,10,0
+getPrompt	BYTE	9,9,". Enter next integer here:",0
+errPrompt	BYTE	"You need to enter a 'good' integer that will fit in a 32 bit register",13,10,0
+inputP		BYTE	9,":","'good' values. Rolling sum: ",0
+
 
 buffer			BYTE	255 DUP(0)
-printBuffer	BYTe	"F",0
+printBuffer	BYTE	"F",0
 inputSucc	DWORD	?
 input		DWORD	?							; Input number
+calcSum		DWORD	0
+calcAvg		DWORD	?
+inputCount	DWORD	1
 
 
 
@@ -65,14 +68,23 @@ input		DWORD	?							; Input number
 
 .code
 main PROC
-;	getString		OFFSET buffer, OFFSET getPrompt, SIZEOF buffer
-;	mov		ecx, OFFSET buffer
-;	displayString	ecx
-;	call	CrLf
-;	push	123
-;	push	OFFSET printBuffer
-;	call	WriteVal
-;	call	CrLf
+	displayString OFFSET introP
+
+	; Initialize registers for looping
+	mov		eax, 0			; Rolling sum
+	mov		ecx, 1			; Count of good input
+
+GetInput:
+	; Print out information on sum, what number you are inputing
+	; Need to swap around eax and ecx due to WriteDec restriction
+	xchg	eax, ecx
+	call	WriteDec
+	displayString OFFSET inputP
+	xchg	eax, ecx
+	call	WriteDec
+
+
+	; Set up stack for ReadVal, call and store return values
 	push	0
 	push	0
 	push	OFFSET buffer
@@ -80,10 +92,26 @@ main PROC
 	call	ReadVal
 	pop		input
 	pop		inputSucc
-	call	CrLf
-	call	CrLf
-	mov		eax, input
-	call	WriteInt
+
+	; If inputSucc is true,  add value, otherwise jump to get new input
+	cmp		inputSucc, 1
+	je		GoodInput
+
+BadInput:
+	displayString OFFSET errPrompt
+	jmp		GetInput
+
+
+
+
+GoodInput:
+	inc		ecx
+	add		eax, input
+
+	cmp		ecx, BASE + 1
+	jne		GetInput
+
+	; Print array, sum, and average
  	exit			;exit to operating system
 main ENDP
 
