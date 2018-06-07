@@ -56,8 +56,8 @@ getPrompt	BYTE	"Enter your float here:",0
 
 buffer			BYTE	255 DUP(0)
 printBuffer	BYTe	"F",0
-
-input		DWORD	10							; Input number
+inputSucc	DWORD	?
+input		DWORD	?							; Input number
 
 
 
@@ -73,11 +73,13 @@ main PROC
 ;	push	OFFSET printBuffer
 ;	call	WriteVal
 ;	call	CrLf
-	push	input
+	push	0
+	push	0
 	push	OFFSET buffer
 	push	SIZEOF buffer
 	call	ReadVal
 	pop		input
+	pop		inputSucc
 	call	CrLf
 	call	CrLf
 	mov		eax, input
@@ -92,7 +94,9 @@ readVal PROC
 ;
 ; Input:		buffer size		[ebp + 8]	size of the array
 ;				buffer offset	[ebp + 12]	Location of array
-;				return location	[ebp + 16] where to return to
+;				return location	[ebp + 16]	where to return to
+;				"Good" number	[ebp + 20]	bool if successful number
+;											also if first digit
 ; Output:		None
 ; Registers:	None modified
 ; StackFrame	ret addres			Address to return to
@@ -104,24 +108,30 @@ readVal PROC
 	mov		ebp,esp
 	pushad
 
+
+	; Check if this is the first time being called
+	mov		eax, 0
+	cmp		eax, [ebp + 20]
+	jne		InitReg
+
+GetInput:
+	getString [ebp + 12], [ebp + 8], OFFSET getPrompt
+
+InitReg:
 	; Move values from stack for easier reading
 	mov		edx, [ebp + 12]
 	mov		ecx, [ebp + 8]
 
-	; Get input
-	getString [ebp + 12], [ebp + 8], OFFSET getPrompt
 
 	; Initialize registers for looping
-InitLoop:
 	mov		esi, [ebp + 12]
 	mov		eax, 0
-	mov		ecx, 0
+	mov		ecx, [ebp + 16]
 	mov		ebx, BASE
 
 	; Load string byte by byte (literally!), check if null term string
 	; If it isn't, check if valid input
 	; If null string, break out of loop
-Reader:
 	lodsb
 	cmp		ax, 0
 	je		RestoreReturn
@@ -146,22 +156,46 @@ Reader:
 	; Swap registers back, continue reading
 	ValidInput:
 	add		eax, ecx
-	xchg	eax, ecx
-	jmp		Reader
+	; Was switching, try just pushing eax.
+	;xchg	eax, ecx
+	
+	; Push values and call again
+	push	1
+	push	eax
+	push	esi
+	push	[ebp + 8]
+	call	readVal
+	; Pop return value into ecx, to be swapped later
+	; More efficient to pop into eax but this is more
+	; readable/consistent with code design
+	pop		ecx
+	; Pop success or failure into edx
+	; Boolean, 0 or 1
+	pop		edx
 
+	; Check if still "good" number aka if ecx = 1
+	cmp		edx, 1
+	je		Successful
+	
 
+	; If invalid, set flag as false and return
+	; Don't continue to do math with numbers
 	InvalidInput:
-	displayString	OFFSET invalidInput
-	jmp InitLoop
+	mov		eax, 0
+	mov		[ebp + 20], eax
+	jmp		RestoreReturn
+
+	
 
 
 
-
+Successful:
+	mov		[ebp + 16], ecx
+	mov		ecx, 1
+	mov		[ebp + 20], ecx
 
 
 RestoreReturn:
-	xchg	ecx, eax
-	mov		[ebp + 16], eax
 	; Restore registers
 	popad
 	pop	ebp
