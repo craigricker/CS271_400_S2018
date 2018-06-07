@@ -39,6 +39,7 @@ getString MACRO storeAddress, stringSize, promptAddress
 ENDM
 
 BASE		= 10
+PER_ROW		= 10
 ASII_OFFSET	= 48
 
 
@@ -53,9 +54,10 @@ expl3P		BYTE	" the sum of the array, and the average value",13,10,0
 getPrompt	BYTE	9,9,". Enter next integer here:",0
 errPrompt	BYTE	"You need to enter a 'good' integer that will fit in a 32 bit register",13,10,0
 inputP		BYTE	" :","integers. Subtotal: ",0
+arrayP		BYTE	"You entered the following numbers:",13,10,0
 sumP		BYTE	"The sum of these numbers is :",9,9, 0
 avgP		BYTE	"The average of these numbers is:",9,0
-goodbyeP	BYTE	"Thanks for playing, and goodbye!",0
+goodbyeP	BYTE	"Thanks for playing, and goodbye!",13,10,0
 
 
 buffer			BYTE	255 DUP(0)
@@ -65,6 +67,7 @@ input		DWORD	?							; Input number
 calcSum		DWORD	0
 calcAvg		DWORD	?
 inputCount	DWORD	1
+inputArray	DWORD	10 DUP(9)
 
 
 
@@ -78,6 +81,8 @@ main PROC
 	; Initialize registers for looping
 	mov		eax, 0			; Rolling sum
 	mov		ecx, 1			; Count of good input
+	mov		edi, OFFSET inputArray
+
 
 GetInput:
 	; Print out information on sum, what number you are inputing
@@ -116,10 +121,19 @@ GoodInput:
 	add		eax, input
 	mov		calcSum, eax
 
+	; Use edx to store input
+	mov		edx, input
+	mov		[edi], edx
+	add		edi, 4
+
 	cmp		ecx, BASE + 1
 	jne		GetInput
 
 	; Print array, sum, and average
+	displayString OFFSET arrayP
+	push	OFFSET inputArray
+	push	LENGTHOF inputArray
+	call	printArray
 	displayString OFFSET sumP
 	push	calcSum
 	push	OFFSET printBuffer
@@ -133,7 +147,7 @@ GoodInput:
 	push	OFFSET printBuffer
 	call	WriteVal
 	call	CrLf
-	
+	displayString OFFSET goodbyeP
  	exit			;exit to operating system
 main ENDP
 
@@ -251,6 +265,64 @@ RestoreReturn:
 	pop	ebp
 	ret 8
 readVal ENDP
+
+;-------------------------------------------------------------------------------
+printArray PROC
+; Description:	Given an initial offset, and count, print out all items in 
+;				input array
+; Input:		Input 1: Array memory location
+;				Input 2: Array size.
+; Output:		No output is created
+; Registers:	No registers modified
+;--------
+;-------------------------------------------------------------------------------
+	; Set up stack frame and store registers
+	push	ebp
+	mov		ebp, esp
+	pushad
+
+	; ecx is array length, edi is array pointer and ebx
+	; will be used to decide if a new line is required
+	mov		edi, [ebp + 12]
+	mov		ecx, [ebp + 8]
+	mov		ebx, 0
+
+
+
+	; Actual code that will loop through array
+ArrayLoop:
+	; Print out an item, and increase print cout
+	mov		eax, [edi]
+	call	WriteDec
+	inc		ebx
+	; If printed out PER_ROW, print new line, otherwise print a tab
+	cmp		ebx, PER_ROW
+	je		NewRow
+	mov		al, TAB
+	call	WriteChar
+	jmp IncrementArray
+
+NewRow:
+	; Print new line, and reset count per line to zero
+	call	CrLf
+	mov		ebx, 0
+	jmp		IncrementArray
+
+IncrementArray:
+	; Increment array pointer
+	add		edi, 4
+	loop	ArrayLoop
+
+	; Print out new lines for appearances
+	call	CrLf
+	call	CrLf
+
+	; Restore registers & return
+	popad
+	pop		ebp
+	ret		8
+printArray ENDP
+
 
 
 
