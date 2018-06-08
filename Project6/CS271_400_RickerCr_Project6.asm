@@ -64,7 +64,7 @@ buffer			BYTE	255 DUP(0)
 printBuffer	BYTE	"F",0
 inputSucc	DWORD	?
 input		DWORD	?							; Input number
-calcSum		DWORD	0
+calcSum		DWORD	12345
 calcAvg		DWORD	?
 inputCount	DWORD	1
 inputArray	DWORD	10 DUP(9)
@@ -75,8 +75,19 @@ inputArray	DWORD	10 DUP(9)
 
 .code
 main PROC
+	push	0
+	push	calcSum
+	push	OFFSET buffer
+	call	WriteVal
+	call	CrLf
+	displayString OFFSET buffer
+	call	CrLf
+
+
 	displayString OFFSET introP
 	displayString OFFSET ec
+
+
 
 	; Initialize registers for looping
 	mov		eax, 0			; Rolling sum
@@ -86,12 +97,15 @@ main PROC
 
 GetInput:
 	; Print out information on sum, what number you are inputing
-	; Need to swap around eax and ecx due to WriteDec restriction
-	xchg	eax, ecx
-	call	WriteDec
+	push	0
+	push	ecx
+	push	OFFSET BUFFER
+	call	WriteVal
 	displayString OFFSET inputP
-	xchg	eax, ecx
-	call	WriteDec
+	push	0
+	push	eax
+	push	OFFSET BUFFER
+	call	WriteVal
 
 
 	; Set up stack for ReadVal, call and store return values
@@ -135,16 +149,18 @@ GoodInput:
 	push	LENGTHOF inputArray
 	call	printArray
 	displayString OFFSET sumP
+	push	0
 	push	calcSum
-	push	OFFSET printBuffer
+	push	OFFSET buffer
 	call	WriteVal
 	call	CrLf
 	displayString OFFSET avgP
 	; clear edx, just in case
 	mov		edx, 0
 	div		inputCount
+	push	0
 	push	eax
-	push	OFFSET printBuffer
+	push	OFFSET buffer
 	call	WriteVal
 	call	CrLf
 	displayString OFFSET goodbyeP
@@ -337,7 +353,9 @@ writeVal PROC
 ; Output:		None
 ; Registers:	None modified
 ; StackFrame	ret addres			Address to return to
-;				[ebp + 8]			prompt to print
+;				[ebp + 16]			# Loops
+;				[ebp + 12]			Current Number
+;				[ebp + 8]			
 ;--------
 ;-------------------------------------------------------------------------------
 	; Set up stack and store registers
@@ -346,9 +364,11 @@ writeVal PROC
 	pushad
 
 	; Initalize values based on input
+	mov		ecx, [ebp + 16]
 	mov		eax, [ebp + 12]
 	mov		edi, [ebp + 8]
 	mov		ebx, BASE
+
 
 
 	; Div by 10, remainder is least sig digit
@@ -360,26 +380,47 @@ writeVal PROC
 	; Check if you are at the end of the number
 	; If not, go one level deeper
 	; Otherwise, begin printing out digits
+	inc		ecx
 	cmp		eax, 0
 	je		PrintReturn
 
-
-
+	
+	push	ecx
 	push	eax
 	push	[ebp + 8]
 	call	writeVal
+	pop		edi
+	pop		eax
+	pop		ecx
 
 
 
 PrintReturn:
-	mov		edi, [ebp + 8]
+	; Current value is stored into edx
 	mov		eax, edx
-	displayString	edi
-	; Change this to use macro, and not call to write char
+	cld
+	stosb
+	; Store start of offset
+	mov		eax, [ebp + 8]
+	mov		[ebp + 8], edi
+	; Check if at "end" which is first call of function
+	; Defined as offset + ecx
+	add		ecx, eax
+	dec		ecx
+	cmp		eax, ecx
+	jne		RestoreReturn
+
+
+	mov		ebx, eax
+	mov		eax, 0
+	stosb
+	displayString ebx
+
+RestoreReturn:
 	; Restore registers
 	popad
 	pop	ebp
-	ret 8
+	ret
 writeVal ENDP
 
 
