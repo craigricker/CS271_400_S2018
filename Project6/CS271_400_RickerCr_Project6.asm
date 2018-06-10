@@ -11,7 +11,9 @@ TITLE Recursive Macro Math (CS271_400_RickerCr_Project6.asm)
 INCLUDE Irvine32.inc
 
 ;-------------------------------------------------------------------------------
-displayString MACRO printAddress,
+displayString MACRO printAddress
+;	Macro that uses Irvine WriteString to store register, print printAddress
+;	restore registers and be done.
 ;-------------------------------------------------------------------------------
 ; Prints dsipaly at address printAddress
 	; Store edx, move to offset, print then restore
@@ -22,9 +24,9 @@ displayString MACRO printAddress,
 ENDM
 
 ;-------------------------------------------------------------------------------
+getString MACRO storeAddress, stringSize, promptAddress
 ;	Prints prompt located at promptAddress, and then stores into
 ;	storeAddress which is string length of stringSize
-getString MACRO storeAddress, stringSize, promptAddress
 ;-------------------------------------------------------------------------------
 	; Store registers, print prompt read into variable, restore
 	push	ecx
@@ -38,6 +40,8 @@ getString MACRO storeAddress, stringSize, promptAddress
 	pop		ecx
 ENDM
 
+
+; Constants
 BASE		= 10
 PER_ROW		= 10
 ASII_OFFSET	= 48
@@ -48,7 +52,7 @@ ec			BYTE	"Extra Credit #1: input numbered, running sum displayed ",13,10
 			BYTE	"Extra Credit #3: ReadVal and WriteVal are recursive",13,10,0
 introP		BYTE	"Welcome to 'Recursive Macro Math' ",13,10
 intro2P		BYTE	"Programmed by Craig Ricker. ",13,10
-expl1P		BYTE	"You will be prompted to enter ten integers.",13,10
+expl1P		BYTE	"You will be prompted to enter ten positive integers.",13,10
 expl2P		BYTE	"These ten values will be stored in an array, you will then be shown the array,"
 expl3P		BYTE	" the sum of the array, and the average value",13,10,0
 getPrompt	BYTE	9,9,". Enter next integer here:",0
@@ -61,9 +65,8 @@ goodbyeP	BYTE	"Thanks for playing, and goodbye!",13,10,0
 
 
 buffer			BYTE	255 DUP(0)
-printBuffer	BYTE	"F",0
 inputSucc	DWORD	?
-input		DWORD	?							; Input number
+input		DWORD	?
 calcSum		DWORD	12345
 calcAvg		DWORD	?
 inputCount	DWORD	1
@@ -75,18 +78,9 @@ inputArray	DWORD	10 DUP(9)
 
 .code
 main PROC
-	push	0
-	push	calcSum
-	push	OFFSET buffer
-	call	WriteVal
-	call	CrLf
-	displayString OFFSET buffer
-	call	CrLf
-
-
+	; Print instructions to user
 	displayString OFFSET introP
 	displayString OFFSET ec
-
 
 
 	; Initialize registers for looping
@@ -94,7 +88,9 @@ main PROC
 	mov		ecx, 1			; Count of good input
 	mov		edi, OFFSET inputArray
 
-
+	; Loop through ten times to get "good" input from user
+	; Calculate rolling sum as well, print this out and number
+	; of "good" input to user when prompting.
 GetInput:
 	; Print out information on sum, what number you are inputing
 	push	0
@@ -121,13 +117,13 @@ GetInput:
 	cmp		inputSucc, 1
 	je		GoodInput
 
+	; ReadVal returned false, get new input
 BadInput:
 	displayString OFFSET errPrompt
 	jmp		GetInput
 
 
-
-
+	; Good input, store data and increase ecx count
 GoodInput:
 	; Store before increasing
 	mov		inputCount, ecx
@@ -143,6 +139,8 @@ GoodInput:
 	cmp		ecx, BASE + 1
 	jne		GetInput
 
+
+	; Once loop is done, print out information on data entered
 	; Print array, sum, and average
 	displayString OFFSET arrayP
 	push	OFFSET inputArray
@@ -155,6 +153,7 @@ GoodInput:
 	call	WriteVal
 	call	CrLf
 	displayString OFFSET avgP
+	; Calculate and display average
 	; clear edx, just in case
 	mov		edx, 0
 	div		inputCount
@@ -179,8 +178,6 @@ readVal PROC
 ;											also if first digit
 ; Output:		None
 ; Registers:	None modified
-; StackFrame	ret addres			Address to return to
-;				[ebp + 8]			prompt to print
 ;--------
 ;-------------------------------------------------------------------------------
 	; Set up stack and store registers
@@ -265,9 +262,6 @@ InitReg:
 	mov		[ebp + 20], eax
 	jmp		RestoreReturn
 
-	
-
-
 
 Successful:
 	mov		[ebp + 16], ecx
@@ -346,16 +340,23 @@ printArray ENDP
 ;-------------------------------------------------------------------------------
 writeVal PROC
 ; Description:	Converts floating point number to string. Assumes that all
-;				input is a true floating point.
+;				input is a true floating point. Prints out at end
+;
+;
+; Note:			Due to project requirements, this program has a strange
+;				implementation. writeVal must use dispalyString. If not,
+;				a simple call to WriteChar, or just convert to string
+;				and then make a single call to displayString would be made.
+;				Having that requirement and being recursive was especially tricky
 ;				
 ;
 ; Input:		prompt		text to introduce program
 ; Output:		None
 ; Registers:	None modified
 ; StackFrame	ret addres			Address to return to
-;				[ebp + 16]			# Loops
+;				[ebp + 16]			Level of recursion
 ;				[ebp + 12]			Current Number
-;				[ebp + 8]			
+;				[ebp + 8]			Address of string to utilize
 ;--------
 ;-------------------------------------------------------------------------------
 	; Set up stack and store registers
